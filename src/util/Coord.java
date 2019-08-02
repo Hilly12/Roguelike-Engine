@@ -1,3 +1,5 @@
+package util;
+
 import java.util.Objects;
 
 public class Coord {
@@ -49,6 +51,14 @@ public class Coord {
 
     public Coord down() {
         return new Coord(x, y + 1);
+    }
+
+    public Coord virtualToReal(Coord base, int hCent, int vCent) {
+        return new Coord(x + base.x - hCent, y + base.y - vCent);
+    }
+
+    public Coord realToVirtual(Coord base, int hCent, int vCent) {
+        return new Coord(x - base.x + hCent, y - base.y + vCent);
     }
 
     @Override

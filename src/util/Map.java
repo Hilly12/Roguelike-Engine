@@ -1,28 +1,24 @@
+package util;
+
+import entities.Entity;
+
+import java.util.HashMap;
+
 public class Map {
     public final int width;
     public final int height;
     public final int[][] walkableMap;
     public final int[][] blockedTileMap;
+    public final int[][] seenTiles;
+    public final HashMap<Coord, Entity> entityMap;
 
     public Map(int width, int height) {
         this.width = width;
         this.height = height;
         walkableMap = new int[width][height];
         blockedTileMap = new int[width][height];
-    }
-
-    public Map(int[][] template) {
-        this.width = template.length;
-        this.height = template[0].length;
-        walkableMap = new int[width][height];
-        blockedTileMap = new int[width][height];
-
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                walkableMap[x][y] = template[x][y];
-                blockedTileMap[x][y] = template[x][y];
-            }
-        }
+        seenTiles = new int[width][height];
+        entityMap = new HashMap<>();
     }
 
     // Helper Functions
@@ -31,11 +27,15 @@ public class Map {
         return walkableMap[c.x][c.y] == 0 && blockedTileMap[c.x][c.y] == 0;
     }
 
-    void block(Coord c) {
+    public void see(Coord c) {
+        seenTiles[c.x][c.y] = 1;
+    }
+
+    public void block(Coord c) {
         blockedTileMap[c.x][c.y] = 1;
     }
 
-    void unblock(Coord c) {
+    public void unblock(Coord c) {
         blockedTileMap[c.x][c.y] = 0;
     }
 

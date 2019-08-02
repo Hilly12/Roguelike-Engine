@@ -1,3 +1,5 @@
+package util;
+
 public class Stats {
 
     public int health;
