@@ -39,10 +39,6 @@ public class Map {
         blockedTileMap[c.x][c.y] = 0;
     }
 
-    public boolean isValidCoord(int x, int y) {
-        return 0 <= x && x < width && 0 <= y && y < height;
-    }
-
     public boolean isValidCoord(Coord c) {
         return 0 <= c.x && c.x < width && 0 <= c.y && c.y < height;
     }

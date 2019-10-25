@@ -1,6 +1,7 @@
 import entities.Entity;
 import entities.LivingEntity;
 import util.Coord;
+import util.Resource;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -51,10 +52,10 @@ public class Painter {
                     } else {
                         drawSquare(g, X, Y, Color.LIGHT_GRAY);
                     }
-                    Entity occupee = game.getMap().entityMap.get(c);
-                    if (occupee != null) {
-                        if (occupee.isLivingEntity()) {
-                            LivingEntity entity = (LivingEntity) occupee;
+                    Entity occupier = game.getMap().entityMap.get(c);
+                    if (occupier != null) {
+                        if (occupier.isLivingEntity()) {
+                            LivingEntity entity = (LivingEntity) occupier;
                             if (entity.isMoving()) {
                                 Coord shift = entity.getDirection();
                                 X += movementShift * shift.x;
@@ -63,13 +64,16 @@ public class Painter {
                         }
                         int finX = X;
                         int finY = Y;
-                        if (occupee.isPlayer()) {
+                        if (occupier.isPlayer()) {
                             executeLater.add(() -> drawSquare(g, finX, finY, Color.RED.darker().darker()));
                         }
-                        if (occupee.isEnemy()) {
+                        if (occupier.isAlly()) {
+                            executeLater.add(() -> drawSquare(g, finX, finY, Color.GREEN.darker().darker()));
+                        }
+                        if (occupier.isEnemy()) {
                             executeLater.add(() -> drawSquare(g, finX, finY, Color.BLUE.darker().darker()));
                         }
-                        if (occupee.isStairs()) {
+                        if (occupier.isStairs()) {
                             executeLater.add(() -> drawSquare(g, finX, finY, Color.YELLOW.darker().darker()));
                         }
                     }
@@ -78,6 +82,18 @@ public class Painter {
         }
         for (Runnable r : executeLater) {
             r.run();
+        }
+        g.setColor(Color.GREEN);
+        int y = 20;
+        g.drawString("Player HP: " + game.getPlayer().getStats().health, 0, y);
+        y += 15;
+        for (LivingEntity l : game.allies) {
+            g.drawString("Ally HP: " + l.getStats().health, 0, y);
+            y += 15;
+        }
+        for (LivingEntity l : game.enemies) {
+            g.drawString("Enemy HP: " + l.getStats().health, 0, y);
+            y += 15;
         }
     }
 

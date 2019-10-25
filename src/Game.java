@@ -1,8 +1,7 @@
-import entities.LivingEntity;
-import entities.Player;
-import entities.Skeleton;
+import entities.*;
 import util.Coord;
 import util.Map;
+import util.Resource;
 
 import java.util.*;
 
@@ -13,26 +12,18 @@ public class Game {
         ANIMATING
     }
 
-    private enum NPC {
-        FRIENDLY,
-        ALLY,
-        ENEMY
-    }
-
     private Player player;
-    private List<LivingEntity> allies;
+    /*private*/ List<LivingEntity> allies;
     private List<LivingEntity> npcs;
     private int enemyCount;
-    private List<LivingEntity> enemies;
+    /*private*/ List<LivingEntity> enemies;
 
     private List<Runnable> actions;
 
     private State gameState;
-    private int mapType;
     private Map map;
 
     public Game() {
-        player = new Player(new Coord(4, 5), Resource.newPlayerStats());
         actions = new ArrayList<>();
         allies = new ArrayList<>();
         enemies = new ArrayList<>();
@@ -71,26 +62,25 @@ public class Game {
             map.walkableMap[x][5] = 0;
             map.blockedTileMap[x][5] = 0;
         }
-        Skeleton sk = new Skeleton(new Coord(2, 2), Resource.newPlayerStats());
-        map.entityMap.put(sk.pos, sk);
-        map.block(sk.pos);
-        sk.getStats().lineOfSight = 5;
-        enemies.add(sk);
 
-        Skeleton sk2 = new Skeleton(new Coord(3, 8), Resource.newPlayerStats());
-        map.entityMap.put(sk2.pos, sk2);
-        map.block(sk2.pos);
-        sk2.getStats().lineOfSight = 5;
-        enemies.add(sk2);
-
-        Skeleton sk3 = new Skeleton(new Coord(4, 6), Resource.newPlayerStats());
-        map.entityMap.put(sk3.pos, sk3);
-        map.block(sk3.pos);
-        sk3.getStats().lineOfSight = 5;
-        enemies.add(sk3);
-
+        player = new Player(new Coord(4, 5), 1, 2, Resource.fromTable(0));
         map.entityMap.put(player.pos, player);
         map.block(player.pos);
+
+        Skeleton sk = new Skeleton(new Coord(2, 2), 1, NPC.ALLY);
+        map.entityMap.put(sk.pos, sk);
+        map.block(sk.pos);
+        allies.add(sk);
+
+        Skeleton sk2 = new Skeleton(new Coord(3, 8), 1, NPC.ENEMY);
+        map.entityMap.put(sk2.pos, sk2);
+        map.block(sk2.pos);
+        enemies.add(sk2);
+
+        Skeleton sk3 = new Skeleton(new Coord(4, 6), 1, NPC.ENEMY);
+        map.entityMap.put(sk3.pos, sk3);
+        map.block(sk3.pos);
+        enemies.add(sk3);
     }
 
     public void StartMove(boolean left, boolean right, boolean up, boolean down) {
@@ -116,16 +106,25 @@ public class Game {
         Coord newPos = Coord.add(player.pos, direction);
         if (map.isWalkable(newPos)) {
             MoveEntity(player, direction, newPos);
-            for (LivingEntity ally : allies) {
-                MakeNPCMove(ally, newPos, NPC.ALLY.ordinal());
-            }
-            for (LivingEntity enemy : enemies) {
-                MakeNPCMove(enemy, newPos, NPC.ENEMY.ordinal());
-            }
-            for (LivingEntity npc : npcs) {
-                MakeNPCMove(npc, newPos, NPC.FRIENDLY.ordinal());
-            }
+            MoveNPCs();
             gameState = State.ANIMATING;
+        } else {
+            if (AttemptAttack(player, newPos)) {
+                MoveNPCs();
+                gameState = State.ANIMATING;
+            }
+        }
+    }
+
+    private void MoveNPCs() {
+        for (LivingEntity ally : allies) {
+            MakeAllyMove(ally);
+        }
+        for (LivingEntity enemy : enemies) {
+            MakeEnemyMove(enemy);
+        }
+        for (LivingEntity npc : npcs) {
+            MakeFriendlyNPCMove(npc);
         }
     }
 
@@ -142,42 +141,50 @@ public class Game {
         actions.add(() -> map.entityMap.put(newPos, entity));
     }
 
-    // Decision Maker
-    private void MakeNPCMove(LivingEntity npc, Coord newPlayerPos, int npcType) {
+    // Decision Making
+
+    private void MakeEnemyMove(LivingEntity enemy) {
+        // Check if can attack anything
+        if (TryRandomAttack(enemy)) {
+            return;
+        }
+
+        // Move
         ArrayList<Coord> validMoveDirections = new ArrayList<>();
-        if (map.isWalkable(npc.pos.left())) {
-            validMoveDirections.add(new Coord(-1, 0));
-        }
-        if (map.isWalkable(npc.pos.right())) {
-            validMoveDirections.add(new Coord(1, 0));
-        }
-        if (map.isWalkable(npc.pos.up())) {
-            validMoveDirections.add(new Coord(0, -1));
-        }
-        if (map.isWalkable(npc.pos.down())) {
-            validMoveDirections.add(new Coord(0, 1));
-        }
-        int distSq = Coord.distanceSquared(player.pos, npc.pos);
-        if (npcType == NPC.ENEMY.ordinal() && distSq <= Math.pow(npc.getStats().lineOfSight, 2)) {
-            if (player.isMoving()) {
-                if (Coord.areNeighbours(newPlayerPos, npc.pos)) {
-                    // TODO: Attack the mofo
-                } else {
-                    MoveToward(npc, player.pos, distSq, validMoveDirections);
-                }
-            } else if (Coord.areNeighbours(player.pos, npc.pos)) {
-                // TODO: Attack the mofo
-            } else {
-                MoveToward(npc, player.pos, distSq, validMoveDirections);
-            }
-        } else if (npcType == NPC.ALLY.ordinal()) {
-            MoveToward(npc, player.pos, distSq, validMoveDirections);
-        } else if (npcType == NPC.FRIENDLY.ordinal()) {
-            if (Math.random() > 0.2) {
-                MoveNPC(npc, Resource.getRandom(validMoveDirections));
-            }
+        GetValidMoves(enemy, validMoveDirections);
+        int distSq = Coord.distanceSquared(player.pos, enemy.pos);
+        if (distSq <= Math.pow(enemy.getStats().lineOfSight, 2)) {
+            MoveToward(enemy, player.pos, distSq, validMoveDirections);
         } else if (validMoveDirections.size() > 0) {
-            MoveNPC(npc, Resource.getRandom(validMoveDirections));
+            MoveNPC(enemy, Resource.getRandom(validMoveDirections));
+        }
+    }
+
+    private void MakeAllyMove(LivingEntity ally) {
+        // Check if can attack anything
+        // Could add different types of personalities depending on ally ie. hostile, lazy, follower
+        if (player.isAttacking()) {
+            if (TryRandomAttack(ally)) {
+                return;
+            }
+        }
+
+        // Move
+        ArrayList<Coord> validMoveDirections = new ArrayList<>();
+        GetValidMoves(ally, validMoveDirections);
+        int distSq = Coord.distanceSquared(player.pos, ally.pos);
+        if (distSq <= Math.pow(ally.getStats().lineOfSight, 2)) {
+            MoveToward(ally, player.pos, distSq, validMoveDirections);
+        } else if (validMoveDirections.size() > 0) {
+            MoveNPC(ally, Resource.getRandom(validMoveDirections));
+        }
+    }
+
+    private void MakeFriendlyNPCMove(LivingEntity friend) {
+        ArrayList<Coord> validMoveDirections = new ArrayList<>();
+        GetValidMoves(friend, validMoveDirections);
+        if (Math.random() > 0.2) {
+            MoveNPC(friend, Resource.getRandom(validMoveDirections));
         }
     }
 
@@ -202,6 +209,70 @@ public class Game {
     private void MoveNPC(LivingEntity npc, Coord direction) {
         Coord newPos = Coord.add(npc.pos, direction);
         MoveEntity(npc, direction, newPos);
+    }
+
+    private boolean TryRandomAttack(LivingEntity attacker) {
+        for (int x = attacker.pos.x - 1; x <= attacker.pos.x + 1; x++) {
+            for (int y = attacker.pos.y - 1; y <= attacker.pos.y + 1; y++) {
+                Coord c = new Coord(x, y);
+                if (AttemptAttack(attacker, c)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean AttemptAttack(LivingEntity attacker, Coord target) {
+        Entity occupier = map.entityMap.get(target);
+        if (occupier != null && occupier.isLivingEntity()) {
+            System.out.println(occupier.getImageID());
+            LivingEntity victim = (LivingEntity) occupier;
+            if (attacker.isHostile(victim)) {
+                Coord newPos = Coord.add(victim.getDirection(), victim.pos);
+                if (victim.isMoving() && !Coord.areAdjacent(newPos, attacker.pos)) {
+                    return false;
+                }
+                attacker.setAttacking(true);
+                // TODO: Play attack sound
+                actions.add(() -> {
+                    attacker.face(Coord.subtract(victim.pos, attacker.pos));
+                    attacker.setAttacking(false);
+                    if (!victim.takeDamage(attacker.getStats().attack)) {
+                        if (victim.isEnemy()) {
+                            enemies.remove(victim);
+                        } else if (victim.isAlly()) {
+                            allies.remove(victim);
+                        }
+                        // unblock occupied tile
+                        if (victim.equals(map.entityMap.get(target))) {
+                            map.entityMap.remove(target);
+                        }
+                        if (victim.equals(map.entityMap.get(newPos))) {
+                            map.entityMap.remove(newPos);
+                        }
+                        // TODO: Add fade effect at death position
+                    }
+                });
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void GetValidMoves(LivingEntity entity, List<Coord> validMoveDirections) {
+        if (map.isWalkable(entity.pos.left())) {
+            validMoveDirections.add(new Coord(-1, 0));
+        }
+        if (map.isWalkable(entity.pos.right())) {
+            validMoveDirections.add(new Coord(1, 0));
+        }
+        if (map.isWalkable(entity.pos.up())) {
+            validMoveDirections.add(new Coord(0, -1));
+        }
+        if (map.isWalkable(entity.pos.down())) {
+            validMoveDirections.add(new Coord(0, 1));
+        }
     }
 
     public boolean isIdle() {

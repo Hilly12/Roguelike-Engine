@@ -1,3 +1,6 @@
+import entities.Entity;
+import util.Resource;
+
 import javax.swing.*;
 import java.awt.Color;
 import java.awt.Graphics;
@@ -29,12 +32,14 @@ public class Board extends JPanel implements KeyListener {
         this.appW = appW;
         this.appH = appH;
         frameCount = 0;
-        // Resource.init();
+        util.Resource.init();
         newGame();
         initGameTimer();
     }
 
     private void newGame() {
+        Resource.init();
+        Entity.autoID = 0;
         game = new Game();
         painter = new Painter(game, appW, appH);
         game.InitializeMap();

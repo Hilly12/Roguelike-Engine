@@ -1,16 +1,11 @@
 package entities;
 
 import util.Coord;
-import util.Stats;
+import util.EntityType;
 
 public class Skeleton extends LivingEntity {
 
-    public Skeleton(Coord pos, Stats stats) {
-        super(pos, stats);
-    }
-
-    @Override
-    public boolean isEnemy() {
-        return true;
+    public Skeleton(Coord pos, int level, NPC type) {
+        super(pos, level, EntityType.Skeleton, type);
     }
 }

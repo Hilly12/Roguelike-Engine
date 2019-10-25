@@ -86,4 +86,9 @@ public class Coord {
     public static int distanceSquared(Coord a, Coord b) {
         return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
     }
+
+    @Override
+    public String toString() {
+        return "x: " + x + " y: " + y;
+    }
 }
