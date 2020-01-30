@@ -18,13 +18,13 @@ public class Game {
     private int enemyCount;
     /*private*/ List<LivingEntity> enemies;
 
-    private List<Runnable> actions;
+    private List<Runnable> endTurnActions;
 
     private State gameState;
     private Map map;
 
     public Game() {
-        actions = new ArrayList<>();
+        endTurnActions = new ArrayList<>();
         allies = new ArrayList<>();
         enemies = new ArrayList<>();
         npcs = new ArrayList<>();
@@ -96,10 +96,10 @@ public class Game {
     }
 
     public void FinishMove() {
-        for (Runnable r : actions) {
+        for (Runnable r : endTurnActions) {
             r.run();
         }
-        actions.clear();
+        endTurnActions.clear();
     }
 
     private void MakeMove(Coord direction) {
@@ -134,11 +134,11 @@ public class Game {
         entity.setMoving(true);
         map.unblock(oldPos);
         map.block(newPos);
-        actions.add(() -> entity.move(direction));
-        actions.add(() -> entity.setMoving(false));
-        actions.add(() -> map.entityMap.remove(oldPos));
-        actions.add(() -> map.entityMap.remove(newPos));
-        actions.add(() -> map.entityMap.put(newPos, entity));
+        endTurnActions.add(() -> entity.move(direction));
+        endTurnActions.add(() -> entity.setMoving(false));
+        endTurnActions.add(() -> map.entityMap.remove(oldPos));
+        endTurnActions.add(() -> map.entityMap.remove(newPos));
+        endTurnActions.add(() -> map.entityMap.put(newPos, entity));
     }
 
     // Decision Making
@@ -226,7 +226,7 @@ public class Game {
     private boolean AttemptAttack(LivingEntity attacker, Coord target) {
         Entity occupier = map.entityMap.get(target);
         if (occupier != null && occupier.isLivingEntity()) {
-            System.out.println(occupier.getImageID());
+            // System.out.println(occupier.getImageID());
             LivingEntity victim = (LivingEntity) occupier;
             if (attacker.isHostile(victim)) {
                 Coord newPos = Coord.add(victim.getDirection(), victim.pos);
@@ -234,30 +234,32 @@ public class Game {
                     return false;
                 }
                 attacker.setAttacking(true);
-                // TODO: Play attack sound
-                actions.add(() -> {
-                    attacker.face(Coord.subtract(victim.pos, attacker.pos));
-                    attacker.setAttacking(false);
-                    if (!victim.takeDamage(attacker.getStats().attack)) {
-                        if (victim.isEnemy()) {
-                            enemies.remove(victim);
-                        } else if (victim.isAlly()) {
-                            allies.remove(victim);
-                        }
-                        // unblock occupied tile
-                        if (victim.equals(map.entityMap.get(target))) {
-                            map.entityMap.remove(target);
-                        }
-                        if (victim.equals(map.entityMap.get(newPos))) {
-                            map.entityMap.remove(newPos);
-                        }
-                        // TODO: Add fade effect at death position
-                    }
-                });
+                endTurnActions.add(() -> Attack(attacker, victim, newPos));
                 return true;
             }
         }
         return false;
+    }
+
+    private void Attack(LivingEntity attacker, LivingEntity victim, Coord newPos) {
+        // TODO: Play attack sound
+        attacker.face(Coord.subtract(victim.pos, attacker.pos));
+        attacker.setAttacking(false);
+        if (!victim.takeDamage(attacker.getStats().attack)) {
+            if (victim.isEnemy()) {
+                enemies.remove(victim);
+            } else if (victim.isAlly()) {
+                allies.remove(victim);
+            }
+            // unblock occupied tile
+            if (victim.equals(map.entityMap.get(victim.pos))) {
+                map.entityMap.remove(victim.pos);
+            }
+            if (victim.equals(map.entityMap.get(newPos))) {
+                map.entityMap.remove(newPos);
+            }
+            // TODO: Add fade effect at death position
+        }
     }
 
     private void GetValidMoves(LivingEntity entity, List<Coord> validMoveDirections) {

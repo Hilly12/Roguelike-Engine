@@ -39,7 +39,6 @@ public class Board extends JPanel implements KeyListener {
 
     private void newGame() {
         Resource.init();
-        Entity.autoID = 0;
         game = new Game();
         painter = new Painter(game, appW, appH);
         game.InitializeMap();
