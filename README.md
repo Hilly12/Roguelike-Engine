@@ -1,3 +1,3 @@
 # Roguelike-Engine
 
-Open Source Java Roguelike Engine
+Java Roguelike Engine
